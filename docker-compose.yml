@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  smart-campus-robot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: smart-campus-delivery-robot:latest
+    container_name: robo-campus-3d
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

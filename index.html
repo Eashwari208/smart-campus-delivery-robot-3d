@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Campus Delivery Robot 3D — Autonomous Pathfinding Simulation</title>
+  <meta name="description" content="3D AI Pathfinding Simulation featuring A* Search, Greedy Best-First Search, and Dynamic Real-Time Replanning on a multi-floor campus grid rendered with Three.js.">
+  <meta name="keywords" content="A* Search, Greedy Best-First, 3D Pathfinding, Delivery Robot, Three.js, Artificial Intelligence, Robotics">
+
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Three.js and OrbitControls via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+
+  <!-- Top Navigation Header -->
+  <header class="app-header" id="app-header">
+    <div class="header-left">
+      <div class="logo-badge">
+        <div class="robot-pulse-icon">
+          <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="logo-text">
+          <h1>ROBO-CAMPUS <span class="badge-3d">3D</span></h1>
+          <span class="sub-caption">Autonomous 3D AI Pathfinding & Replanning</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <!-- Preset Scenarios Selector -->
+      <div class="scenario-selector-wrap">
+        <label for="scenario-select"><i class="fa-solid fa-map-location-dot"></i> Scenario:</label>
+        <select id="scenario-select" class="custom-select">
+          <option value="library_to_dorms" selected>📚 Library to Dorms (Multi-Floor Express)</option>
+          <option value="cafeteria_rush">🍔 Cafeteria Rush (Crowded Corridors)</option>
+          <option value="construction_maze">🚧 Construction Maze (Vertical Detours)</option>
+          <option value="rooftop_delivery">🚁 Rooftop Heli-pad (Elevator Only)</option>
+          <option value="spiral_tower">🌀 Double Spiral Campus Tower</option>
+          <option value="custom">✏️ Custom Campus Layout</option>
+        </select>
+      </div>
+
+      <!-- Backend Connection Status Pill -->
+      <div class="status-pill" id="backend-status-pill" title="Engine Status">
+        <span class="status-dot online"></span>
+        <span class="status-label" id="backend-status-text">Checking Backend...</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Quick Action Buttons -->
+      <button class="btn btn-secondary btn-sm" id="btn-compare-modal" title="Compare Algorithm Benchmarks">
+        <i class="fa-solid fa-chart-simple"></i> Compare Algorithms
+      </button>
+      <button class="btn btn-icon btn-sm" id="btn-audio-toggle" title="Toggle Sound FX">
+        <i class="fa-solid fa-volume-high"></i>
+      </button>
+      <button class="btn btn-icon btn-sm" id="btn-reset-cam" title="Reset Camera (Press R)">
+        <i class="fa-solid fa-video"></i>
+      </button>
+      <button class="btn btn-icon btn-sm" id="btn-fullscreen" title="Toggle Fullscreen">
+        <i class="fa-solid fa-expand"></i>
+      </button>
+      <a href="https://github.com" target="_blank" class="btn btn-icon btn-sm" title="Project Documentation">
+        <i class="fa-brands fa-github"></i>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Application Workspace -->
+  <main class="main-workspace">
+    
+    <!-- LEFT SIDEBAR: Controls, Algorithm Configuration, Tools -->
+    <aside class="sidebar sidebar-left" id="sidebar-left">
+      <div class="sidebar-scrollable">
+
+        <!-- 1. Algorithm Selection Card -->
+        <section class="control-panel-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-brain text-accent"></i> Pathfinding Algorithm</h3>
+          </div>
+          <div class="algorithm-selector-group">
+            <label class="algo-radio-card" data-algo="astar">
+              <input type="radio" name="algorithm" value="astar" checked>
+              <div class="algo-info">
+                <span class="algo-name">A* Search</span>
+                <span class="algo-formula">f(n) = g(n) + h(n)</span>
+                <span class="algo-tag optimal"><i class="fa-solid fa-check-circle"></i> Guaranteed Shortest</span>
+              </div>
+            </label>
+
+            <label class="algo-radio-card" data-algo="greedy">
+              <input type="radio" name="algorithm" value="greedy">
+              <div class="algo-info">
+                <span class="algo-name">Greedy Best-First</span>
+                <span class="algo-formula">f(n) = h(n)</span>
+                <span class="algo-tag fast"><i class="fa-solid fa-bolt"></i> Fast Heuristic Scan</span>
+              </div>
+            </label>
+
+            <label class="algo-radio-card" data-algo="dijkstra">
+              <input type="radio" name="algorithm" value="dijkstra">
+              <div class="algo-info">
+                <span class="algo-name">Dijkstra / UCS</span>
+                <span class="algo-formula">f(n) = g(n)</span>
+                <span class="algo-tag standard"><i class="fa-solid fa-layer-group"></i> Uniform Cost Search</span>
+              </div>
+            </label>
+          </div>
+
+          <!-- Heuristic & Tuning Settings -->
+          <div class="form-row mt-3">
+            <label for="heuristic-select">3D Distance Heuristic:</label>
+            <select id="heuristic-select" class="custom-select form-control-sm">
+              <option value="manhattan" selected>3D Manhattan (|Δx| + |Δy| + |Δz|)</option>
+              <option value="euclidean">3D Euclidean (√Δx² + Δy² + Δz²)</option>
+              <option value="chebyshev">3D Chebyshev (Max Δ)</option>
+            </select>
+          </div>
+
+          <div class="form-row mt-2">
+            <div class="slider-header">
+              <label for="slider-vert-cost">Vertical Climb Energy Cost:</label>
+              <span class="slider-value" id="val-vert-cost">1.5x</span>
+            </div>
+            <input type="range" id="slider-vert-cost" min="1.0" max="3.5" step="0.1" value="1.5" class="custom-slider">
+          </div>
+        </section>
+
+        <!-- 2. Floor Layer Slicer & Perspective -->
+        <section class="control-panel-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-layer-group text-accent"></i> 3D Layer Slicer</h3>
+          </div>
+          
+          <div class="floor-slicer-container">
+            <div class="floor-buttons-row">
+              <button class="btn btn-floor active" data-floor="all" id="btn-floor-all">All Floors</button>
+              <button class="btn btn-floor" data-floor="3" id="btn-floor-3">F3 Skydeck</button>
+              <button class="btn btn-floor" data-floor="2" id="btn-floor-2">F2 Library</button>
+              <button class="btn btn-floor" data-floor="1" id="btn-floor-1">F1 Labs</button>
+              <button class="btn btn-floor" data-floor="0" id="btn-floor-0">F0 Lobby</button>
+            </div>
+            <div class="layer-transparency-toggle mt-2">
+              <label class="custom-checkbox">
+                <input type="checkbox" id="check-ghost-layers" checked>
+                <span>Ghost Inactive Floors</span>
+              </label>
+              <label class="custom-checkbox">
+                <input type="checkbox" id="check-grid-lines" checked>
+                <span>Show Grid Lines</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Camera Perspectives -->
+          <div class="camera-mode-tabs mt-3">
+            <label class="cam-tab active" data-cam="orbit" title="Free 3D Orbit"><i class="fa-solid fa-globe"></i> 3D Orbit</label>
+            <label class="cam-tab" data-cam="iso" title="Architectural Isometric"><i class="fa-solid fa-cube"></i> Isometric</label>
+            <label class="cam-tab" data-cam="top" title="2D Floor Blueprint"><i class="fa-solid fa-arrows-up-down-left-right"></i> Top 2D</label>
+            <label class="cam-tab" data-cam="follow" title="Follow Delivery Robot"><i class="fa-solid fa-crosshairs"></i> Chase Cam</label>
+          </div>
+        </section>
+
+        <!-- 3. Grid Editor & Palette -->
+        <section class="control-panel-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-palette text-accent"></i> 3D Brush & Grid Tools</h3>
+          </div>
+
+          <div class="brush-palette-grid">
+            <button class="brush-btn" data-brush="start" title="Robot Starting Node">
+              <span class="brush-swatch swatch-start"></span> Start (S)
+            </button>
+            <button class="brush-btn" data-brush="goal" title="Delivery Destination">
+              <span class="brush-swatch swatch-goal"></span> Goal (G)
+            </button>
+            <button class="brush-btn active" data-brush="wall" title="Static Building Wall / Obstacle">
+              <span class="brush-swatch swatch-wall"></span> Wall (Cost ∞)
+            </button>
+            <button class="brush-btn" data-brush="ramp" title="Vertical Ramp / Staircase">
+              <span class="brush-swatch swatch-ramp"></span> Ramp (Cost 2.0)
+            </button>
+            <button class="brush-btn" data-brush="elevator" title="Multi-floor Elevator Shaft">
+              <span class="brush-swatch swatch-elevator"></span> Elevator
+            </button>
+            <button class="brush-btn" data-brush="dynamic" title="Dynamic Obstacle (Pedestrian / Hazard)">
+              <span class="brush-swatch swatch-dynamic"></span> Hazard
+            </button>
+            <button class="brush-btn" data-brush="erase" title="Clear / Free Cell">
+              <span class="brush-swatch swatch-erase"></span> Eraser
+            </button>
+          </div>
+
+          <div class="editor-actions mt-3">
+            <button class="btn btn-secondary btn-sm" id="btn-generate-maze"><i class="fa-solid fa-shuffle"></i> Random Maze</button>
+            <button class="btn btn-danger-outline btn-sm" id="btn-clear-grid"><i class="fa-solid fa-trash-can"></i> Clear Grid</button>
+          </div>
+        </section>
+
+        <!-- 4. Dynamic Replanning Stress Tests -->
+        <section class="control-panel-card alert-panel">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-triangle-exclamation text-warning"></i> Dynamic Replanning</h3>
+          </div>
+          <p class="panel-desc">Test real-time route recovery when unexpected blockages occur mid-delivery:</p>
+          <div class="replanning-actions">
+            <button class="btn btn-warning btn-sm w-100" id="btn-block-path">
+              <i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Drop Obstacle Ahead of Robot
+            </button>
+            <button class="btn btn-secondary btn-sm w-100 mt-2" id="btn-random-hazards">
+              <i class="fa-solid fa-cloud-bolt"></i> Spawn 3 Dynamic Hazards
+            </button>
+          </div>
+        </section>
+
+      </div>
+    </aside>
+
+    <!-- CENTER 3D VIEWPORT & HUD -->
+    <section class="viewport-container" id="viewport-container">
+      
+      <!-- 3D WebGL Canvas Target -->
+      <div id="three-canvas-target" class="three-canvas-target"></div>
+
+      <!-- Overlaid 3D Viewport Controls & Status Overlay -->
+      <div class="viewport-hud-top">
+        <div class="hud-pill active-mode">
+          <span class="pulse-indicator"></span>
+          <span id="hud-sim-status">Ready for Path Planning</span>
+        </div>
+        
+        <div class="hud-pill active-layer-indicator" id="hud-layer-tag">
+          <i class="fa-solid fa-building"></i> Viewing: All Floors (3D)
+        </div>
+      </div>
+
+      <!-- Floating Delivery Robot State HUD -->
+      <div class="robot-state-hud" id="robot-state-hud">
+        <div class="robot-avatar">
+          <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="robot-stats-compact">
+          <div class="stat-line">
+            <span class="label">Position:</span>
+            <span class="value" id="hud-robot-pos">(0, 0, 0)</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Floor Level:</span>
+            <span class="value" id="hud-robot-floor">Ground Floor (F0)</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Battery:</span>
+            <span class="value text-success" id="hud-robot-battery">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating Real-Time Replan Alert Banner -->
+      <div class="replan-alert-banner" id="replan-alert-banner">
+        <div class="alert-icon-ring"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="alert-content">
+          <h4>PATHWAY OBSTRUCTED!</h4>
+          <p>Dynamic replanner recalculating optimal 3D detour in real-time...</p>
+        </div>
+      </div>
+
+      <!-- BOTTOM CONTROL BAR: Playback, Speed, Route Triggers -->
+      <div class="viewport-bottom-controls">
+        <div class="playback-bar-inner">
+          
+          <button class="btn btn-primary btn-lg pulse" id="btn-find-path">
+            <i class="fa-solid fa-route"></i> Calculate Route
+          </button>
+
+          <button class="btn btn-success btn-lg" id="btn-start-delivery" disabled>
+            <i class="fa-solid fa-truck-fast"></i> Start Delivery
+          </button>
+
+          <div class="playback-btn-group">
+            <button class="btn btn-icon" id="btn-pause-play" title="Pause / Resume" disabled>
+              <i class="fa-solid fa-pause"></i>
+            </button>
+            <button class="btn btn-icon" id="btn-step-forward" title="Step Forward" disabled>
+              <i class="fa-solid fa-forward-step"></i>
+            </button>
+            <button class="btn btn-icon" id="btn-reset-sim" title="Reset Simulation">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+          </div>
+
+          <div class="speed-slider-wrap">
+            <span class="speed-label"><i class="fa-solid fa-gauge-high"></i> Speed:</span>
+            <input type="range" id="slider-sim-speed" min="1" max="10" value="5" class="custom-slider">
+            <span class="speed-val" id="val-sim-speed">5x</span>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT SIDEBAR: Live Metrics, Cost Breakdowns & Mission Event Log -->
+    <aside class="sidebar sidebar-right" id="sidebar-right">
+      <div class="sidebar-scrollable">
+
+        <!-- 1. Live Mission Metrics & KPIs -->
+        <section class="control-panel-card metrics-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-chart-line text-accent"></i> Live Mission Metrics</h3>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi-box">
+              <span class="kpi-title">Nodes Explored</span>
+              <span class="kpi-value highlight-cyan" id="metric-explored">0</span>
+              <span class="kpi-sub">Search Space</span>
+            </div>
+
+            <div class="kpi-box">
+              <span class="kpi-title">Path Length</span>
+              <span class="kpi-value highlight-green" id="metric-steps">0</span>
+              <span class="kpi-sub">Total Waypoints</span>
+            </div>
+
+            <div class="kpi-box">
+              <span class="kpi-title">Total Energy Cost</span>
+              <span class="kpi-value highlight-amber" id="metric-cost">0.0</span>
+              <span class="kpi-sub">Weighted Move Units</span>
+            </div>
+
+            <div class="kpi-box">
+              <span class="kpi-title">Computation Time</span>
+              <span class="kpi-value highlight-purple" id="metric-time">0.0 ms</span>
+              <span class="kpi-sub">Algorithm Speed</span>
+            </div>
+          </div>
+
+          <!-- Secondary Metric Counters -->
+          <div class="metric-list-details mt-3">
+            <div class="detail-row">
+              <span class="detail-label"><i class="fa-solid fa-elevator"></i> Floors Traversed:</span>
+              <span class="detail-val" id="metric-floors">0 floors</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label"><i class="fa-solid fa-battery-half"></i> Energy Consumed:</span>
+              <span class="detail-val" id="metric-energy">0.0 units</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label"><i class="fa-solid fa-arrows-split-up-and-left"></i> Real-time Replans:</span>
+              <span class="detail-val text-warning" id="metric-replans">0</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label"><i class="fa-solid fa-server"></i> Pathfinding Engine:</span>
+              <span class="detail-val text-accent" id="metric-engine">Python Backend</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Interactive Cell Inspector -->
+        <section class="control-panel-card inspector-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-crosshairs text-accent"></i> 3D Coordinate Inspector</h3>
+          </div>
+          <div class="inspector-content" id="inspector-content">
+            <div class="empty-inspector">
+              <i class="fa-solid fa-arrow-pointer"></i>
+              <span>Hover or click any cell in 3D grid</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Real-Time Mission Event Log -->
+        <section class="control-panel-card log-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-terminal text-accent"></i> Mission Event Log</h3>
+            <button class="btn btn-icon btn-xs" id="btn-clear-log" title="Clear Log"><i class="fa-solid fa-ban"></i></button>
+          </div>
+          <div class="event-log-box" id="event-log-box">
+            <!-- Event entries added dynamically -->
+            <div class="log-entry log-system">
+              <span class="log-time">[00:00:00]</span>
+              <span class="log-text">System initialized. Ready for 3D navigation.</span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Algorithm Comparison Modal -->
+  <div class="modal-backdrop" id="modal-compare">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-scale-balanced text-accent"></i> 3D Pathfinding Algorithm Benchmark</h2>
+        <button class="modal-close-btn" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          Compare <strong>A* Search</strong>, <strong>Greedy Best-First</strong>, and <strong>Dijkstra's Algorithm</strong> on the current 3D campus map:
+        </p>
+
+        <div class="table-responsive">
+          <table class="benchmark-table">
+            <thead>
+              <tr>
+                <th>Algorithm</th>
+                <th>Evaluation Function</th>
+                <th>Path Length</th>
+                <th>Total Cost</th>
+                <th>Nodes Explored</th>
+                <th>Time (ms)</th>
+                <th>Optimality</th>
+              </tr>
+            </thead>
+            <tbody id="benchmark-table-body">
+              <tr><td colspan="7" class="text-center">Click "Run Benchmark" to test algorithms...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="benchmark-summary-cards mt-4" id="benchmark-summary-cards">
+          <!-- Dynamic summary badges -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-modal-cancel">Close</button>
+        <button class="btn btn-primary" id="btn-run-benchmark"><i class="fa-solid fa-play"></i> Run Benchmark</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript Application Bundles -->
+  <script src="script.js"></script>
+</body>
+</html>
